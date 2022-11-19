@@ -11,6 +11,7 @@ with open("README.md") as f:
 setup(
     name='rpc',
     author="Imanji Beki",
+    version=VERSION,
     author_email="imanjibeki@gmail.com",
     packages=find_packages(),
     url="https://github.com/Beki95/rpc",
