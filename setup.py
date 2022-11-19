@@ -13,10 +13,7 @@ setup(
     author="Imanji Beki",
     author_email="imanjibeki@gmail.com",
     packages=find_packages(),
-    url="",
-    download_url="https://github.com/kshcherban/acme-nginx/tarball/v{0}".format(
-        VERSION
-    ),
+    url="https://github.com/Beki95/rpc",
     license="MIT",
     description="",
     long_description=long_description,
