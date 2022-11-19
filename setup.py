@@ -9,7 +9,7 @@ with open("README.md") as f:
     long_description = f.read()
 
 setup(
-    name='rpc',
+    name='remote_procedure',
     author="Imanji Beki",
     version=VERSION,
     author_email="imanjibeki@gmail.com",
