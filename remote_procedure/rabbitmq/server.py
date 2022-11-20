@@ -10,11 +10,15 @@ from aio_pika.patterns import (
     RPC,
 )
 
-from rpc.rabbitmq.type import UnionRpc
-from rpc.router import RPCRouter
+from remote_procedure.rabbitmq.protocols import RPCServerProtocol
+from remote_procedure.rabbitmq.type import UnionRpc
+from remote_procedure.router import (
+    RPCRouter,
+    RPCRouterProtocol,
+)
 
 
-class RPCServer:
+class RPCServer(RPCServerProtocol):
 
     def __init__(
             self,
@@ -24,7 +28,7 @@ class RPCServer:
         self.url = url
         self.RPC = rpc
         self.loop: AbstractEventLoop | None = None
-        self.router = RPCRouter()
+        self.router: RPCRouterProtocol = RPCRouter()
 
     def set_event_loop(self, loop):
         self.loop = loop
@@ -45,7 +49,7 @@ class RPCServer:
         rpc = await self.RPC.create(channel)
 
         # Register and consume router
-        for route in self.router.routes:
+        for route in self.router.routes:  # noqa
             await rpc.register(
                 route['path'].lstrip('_'),
                 route['endpoint'],

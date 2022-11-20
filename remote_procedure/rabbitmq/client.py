@@ -1,4 +1,6 @@
-import asyncio
+import asyncio  # noqa
+import logging
+import uuid
 from asyncio import AbstractEventLoop
 from typing import (
     Any,
@@ -17,32 +19,32 @@ from aio_pika.abc import (
 )
 from aio_pika.patterns import JsonRPC
 from aio_pika.pool import Pool
-from starlette.datastructures import State  # noqa
 
-from rpc.rabbitmq.type import UnionRpc
+from remote_procedure.rabbitmq.protocols import RPCClientProtocol
+from remote_procedure.rabbitmq.type import UnionRpc
+
+LOGGER = logging.getLogger(__name__)
 
 
-class RPCClient:
+class RPCClient(RPCClientProtocol):
 
     def __init__(
             self,
             url: str,
-            state: State,
             rpc: UnionRpc = JsonRPC,
     ):
         self.url = url
         self.RPC = rpc
-        self.state: State = state
         self.loop: AbstractEventLoop | None = None
         self.futures: MutableMapping[str, asyncio.Future] = {}
-        self.channel_pool: Pool = Pool(
-            self.get_channel,
-            max_size=10,
-            loop=self.loop,
-        )
         self.connection_pool: Pool = Pool(
             self.connection_factory,
             max_size=2,
+            loop=self.loop,
+        )
+        self.channel_pool: Pool = Pool(
+            self.get_channel,
+            max_size=10,
             loop=self.loop,
         )
 
@@ -50,31 +52,41 @@ class RPCClient:
         self.loop = loop
 
     async def connection_factory(self, **kwargs) -> AbstractRobustConnection:
+        LOGGER.info('Start rpc connection!!!')
         return await aio_pika.connect_robust(url=self.url, loop=self.loop)
 
     async def get_channel(self) -> AbstractRobustChannel:
         async with self.connection_pool.acquire() as connection:
             return await connection.channel()
 
-    @classmethod
-    def on_response(cls, message: AbstractIncomingMessage) -> None:
+    def on_response(self, message: AbstractIncomingMessage) -> None:
         if message.correlation_id is None:
-            print(f"Bad message {message!r}")
+            LOGGER.info(f"Bad message {message!r}")
             return
-        # future: asyncio.Future = self.futures.pop(message.correlation_id)
-        # future.set_result(message.body)
+        future: asyncio.Future = self.futures.pop(message.correlation_id)
+        future.set_result(message.body)
+
+    @classmethod
+    def get_correlation_id(cls):
+        return uuid.uuid4().__str__()
 
     async def publish(self, body: Any, queue_name):
+        """https://aio-pika.readthedocs.io/en/latest/rabbitmq-tutorial/6-rpc.html#"""
         async with self.channel_pool.acquire() as channel:  # type: Channel
             result = await channel.declare_queue(exclusive=True)
+            await result.consume(self.on_response)
+
+            correlation_id = self.get_correlation_id()
+            future = self.loop.create_future()
+            self.futures[correlation_id] = future
+
             await channel.default_exchange.publish(
                 message=Message(
                     body=body,
                     content_type='application/json',
+                    correlation_id=correlation_id,
                     reply_to=result.name,
                 ),
                 routing_key=queue_name,
             )
-            # correlation_id = str(uuid.uuid4())
-            # future = self.loop.create_future()
-            # self.futures[correlation_id] = future
+            LOGGER.info(future.result())
