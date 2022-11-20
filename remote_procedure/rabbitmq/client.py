@@ -1,4 +1,5 @@
 import asyncio  # noqa
+import json
 import logging
 import uuid
 from asyncio import AbstractEventLoop
@@ -59,12 +60,23 @@ class RPCClient(RPCClientProtocol):
         async with self.connection_pool.acquire() as connection:
             return await connection.channel()
 
+    @classmethod
+    def convert_message_to_dict(cls, message: bytes):
+        try:
+            return json.loads(message)
+        except json.JSONDecodeError as error:
+            LOGGER.error(msg=error.msg)
+            return dict(
+                error=True, msg='Message decode error!',
+            )
+
     def on_response(self, message: AbstractIncomingMessage) -> None:
         if message.correlation_id is None:
             LOGGER.info(f"Bad message {message!r}")
             return
         future: asyncio.Future = self.futures.pop(message.correlation_id)
-        future.set_result(message.body)
+        resp: dict = self.convert_message_to_dict(message=message.body)
+        future.set_result(resp)
 
     @classmethod
     def get_correlation_id(cls):
@@ -89,4 +101,4 @@ class RPCClient(RPCClientProtocol):
                 ),
                 routing_key=queue_name,
             )
-            LOGGER.info(future.result())
+            return await future
