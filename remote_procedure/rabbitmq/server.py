@@ -6,12 +6,14 @@ from aio_pika.abc import (
     AbstractRobustConnection,
 )
 from aio_pika.patterns import (
-    JsonRPC,
     RPC,
 )
 
 from remote_procedure.rabbitmq.protocols import RPCServerProtocol
-from remote_procedure.rabbitmq.type import UnionRpc
+from remote_procedure.rabbitmq.type import (
+    JsonRPC,
+    UnionRpc,
+)
 from remote_procedure.router import (
     RPCRouter,
     RPCRouterProtocol,

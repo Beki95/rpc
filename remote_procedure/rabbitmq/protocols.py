@@ -8,6 +8,11 @@ from aio_pika.abc import (
 )
 from aio_pika.patterns import RPC
 
+from remote_procedure.rabbitmq.type import (
+    JsonRPC,
+    UnionRpc,
+)
+
 
 class RPCClientProtocol(abc.ABC):
 
