@@ -3,25 +3,28 @@ from setuptools import (
     setup,
 )
 
-VERSION = "0.1.0"
+VERSION = "0.1.1"
+NAME: str = 'remote_procedure'
+AUTHOR: str = 'Imanji Beki'  # noqa
+AUTHOR_EMAIL: str = 'imanjibeki@gmail.com'
+URI: str = 'https://github.com/Beki95/rpc'
 
 with open("README.md") as f:
     long_description = f.read()
 
 setup(
-    name='remote_procedure',
-    author="Imanji Beki",
+    name=NAME,
+    author=AUTHOR,
     version=VERSION,
-    author_email="imanjibeki@gmail.com",
+    author_email=AUTHOR_EMAIL,
     packages=find_packages(),
-    url="https://github.com/Beki95/rpc",
+    url=URI,
     license="MIT",
     description="",
     long_description=long_description,
     long_description_content_type="text/markdown",
     install_requires=[
         "aio-pika==8.2.4",
-        "fastapi==0.85.0",
     ],
     classifiers=[
         # Trove classifiers
@@ -30,7 +33,6 @@ setup(
         'Programming Language :: Python',
         'Programming Language :: Python :: 3',
         'Programming Language :: Python :: 3.10',
-        'Programming Language :: Python :: Implementation :: CPython',
         'Programming Language :: Python :: Implementation :: PyPy'
     ],
 )
