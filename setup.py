@@ -25,6 +25,7 @@ setup(
     long_description_content_type="text/markdown",
     install_requires=[
         "aio-pika==8.2.4",
+        "pika==1.3.1",
     ],
     classifiers=[
         # Trove classifiers
