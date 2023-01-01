@@ -75,7 +75,7 @@ class RPCAsyncServer(RPCAsyncServerProtocol):
         return rpc
 
 
-class RPCServer(RPCSyncServerProtocol, Connector, MessageConverter):
+class RPCSyncServer(RPCSyncServerProtocol, Connector, MessageConverter):
 
     def __init__(self, *args, **kwargs):
         self.router: RPCRouterProtocol = RPCRouter()
