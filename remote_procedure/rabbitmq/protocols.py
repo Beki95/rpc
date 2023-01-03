@@ -11,17 +11,8 @@ from aio_pika.abc import (
 from aio_pika.patterns import RPC
 from pika.adapters.blocking_connection import BlockingChannel
 
-from remote_procedure.rabbitmq.type import (
-    JsonRPC,
-    UnionRpc,
-)
-
 
 class RPCAsyncClientProtocol(abc.ABC):
-
-    @abc.abstractmethod
-    def __init__(self, url: str, rpc: UnionRpc = JsonRPC):  # noqa
-        raise NotImplementedError
 
     @abc.abstractclassmethod
     def on_response(cls, message: AbstractIncomingMessage) -> None:
