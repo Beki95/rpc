@@ -136,5 +136,5 @@ class RPCSyncClient(RPCSyncClientProtocol, Connector, MessageConverter):
                     expiration=expiration,
                 ),
             )
-            self._connection.process_data_events(time_limit=timout)  # noqa
+            self._connection.process_data_events(time_limit=timeout)
             return self.response
