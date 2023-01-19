@@ -53,7 +53,13 @@ class RPCAsyncClient(RPCAsyncClientProtocol, AsyncConnector, MessageConverter):
         resp: dict = self.convert_message_to_dict(message=message.body)
         future.set_result(resp)
 
-    async def rpc_call(self, body: Any, queue_name, timeout: TimeoutType):
+    async def rpc_call(
+            self,
+            body: Any,
+            queue_name,
+            timeout: TimeoutType,
+            expiration: bool = True,
+    ):
         """https://aio-pika.readthedocs.io/en/latest/rabbitmq-tutorial/6-rpc.html#"""
         async with self.channel_pool.acquire() as channel:  # type: Channel
             result = await channel.declare_queue(exclusive=True)
@@ -63,15 +69,18 @@ class RPCAsyncClient(RPCAsyncClientProtocol, AsyncConnector, MessageConverter):
             future = self.loop.create_future()
             self.futures[correlation_id] = future
 
+            expiration: str | None = (expiration and str(timeout)) or None
+
             await channel.default_exchange.publish(
                 message=Message(
                     body=body,
                     content_type='application/json',
                     correlation_id=correlation_id,
                     reply_to=result.name,
-                    expiration=timeout,
+                    expiration=expiration,
                 ),
                 routing_key=queue_name,
+                timeout=timeout,
             )
             return await future
 
@@ -100,13 +109,21 @@ class RPCSyncClient(RPCSyncClientProtocol, Connector, MessageConverter):
         except ChannelClosedByBroker as exc:
             raise ChannelClosedByBrokerError(exc)
 
-    def rpc_call(self, routing_key, body, timout: TimeoutType):
+    def rpc_call(
+            self,
+            routing_key,
+            body,
+            timeout: TimeoutType,
+            expiration: bool = True,
+    ):
         """https://www.rabbitmq.com/tutorials/tutorial-six-python.html"""
-        with self.channel_pool.acquire() as channel:  # type: BlockingChannel
+        with self.channel_pool as channel:  # type: BlockingChannel
             self.consume(queue=self.callback_queue, channel=channel)
 
             correlation_id = get_correlation_id()
             self.correlation_id_data[correlation_id] = correlation_id
+
+            expiration: str | None = (expiration and str(timeout)) or None
 
             channel.basic_publish(
                 exchange=self._exchange,
@@ -116,7 +133,7 @@ class RPCSyncClient(RPCSyncClientProtocol, Connector, MessageConverter):
                     content_type='application/json',
                     reply_to=self.callback_queue,
                     correlation_id=correlation_id,
-                    expiration=f'{timout}',
+                    expiration=expiration,
                 ),
             )
             self._connection.process_data_events(time_limit=timout)  # noqa
