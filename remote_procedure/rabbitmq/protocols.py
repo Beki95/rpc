@@ -19,7 +19,13 @@ class RPCAsyncClientProtocol(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def rpc_call(self, body: Any, queue_name, timeout: TimeoutType):
+    async def rpc_call(
+            self,
+            body: Any,
+            queue_name,
+            timeout: TimeoutType,
+            expiration: bool = True
+    ):
         raise NotImplementedError
 
 
@@ -47,7 +53,13 @@ class RPCSyncClientProtocol(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def rpc_call(self, routing_key, body, timout: TimeoutType):
+    def rpc_call(
+            self,
+            routing_key,
+            body,
+            timeout: TimeoutType,
+            expiration: bool = True,
+    ):
         raise NotImplementedError
 
 
