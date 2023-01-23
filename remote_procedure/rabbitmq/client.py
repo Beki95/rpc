@@ -2,7 +2,6 @@ import asyncio  # noqa
 import logging
 from asyncio import AbstractEventLoop
 from typing import (
-    Any,
     MutableMapping,
     Union,
 )
@@ -55,7 +54,7 @@ class RPCAsyncClient(RPCAsyncClientProtocol, AsyncConnector, MessageConverter):
 
     async def rpc_call(
             self,
-            body: Any,
+            body: dict,
             queue_name,
             timeout: TimeoutType,
             expiration: bool = True,
@@ -69,7 +68,9 @@ class RPCAsyncClient(RPCAsyncClientProtocol, AsyncConnector, MessageConverter):
             future = self.loop.create_future()
             self.futures[correlation_id] = future
 
-            expiration: str | None = (expiration and str(timeout)) or None
+            expiration: str | None = (expiration and timeout) or None
+
+            body = self.convert_dict_to_bytes(obj=body)
 
             await channel.default_exchange.publish(
                 message=Message(
@@ -112,7 +113,7 @@ class RPCSyncClient(RPCSyncClientProtocol, Connector, MessageConverter):
     def rpc_call(
             self,
             routing_key,
-            body,
+            body: dict,
             timeout: TimeoutType,
             expiration: bool = True,
     ):
@@ -124,6 +125,8 @@ class RPCSyncClient(RPCSyncClientProtocol, Connector, MessageConverter):
             self.correlation_id_data[correlation_id] = correlation_id
 
             expiration: str | None = (expiration and str(timeout)) or None
+
+            body = self.convert_dict_to_bytes(obj=body)
 
             channel.basic_publish(
                 exchange=self._exchange,
