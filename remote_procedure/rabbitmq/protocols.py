@@ -21,7 +21,7 @@ class RPCAsyncClientProtocol(abc.ABC):
     @abc.abstractmethod
     async def rpc_call(
             self,
-            body: Any,
+            body: dict,
             queue_name,
             timeout: TimeoutType,
             expiration: bool = True
@@ -56,7 +56,7 @@ class RPCSyncClientProtocol(abc.ABC):
     def rpc_call(
             self,
             routing_key,
-            body,
+            body: dict,
             timeout: TimeoutType,
             expiration: bool = True,
     ):
