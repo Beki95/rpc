@@ -83,7 +83,10 @@ class RPCAsyncClient(RPCAsyncClientProtocol, AsyncConnector, MessageConverter):
                 routing_key=queue_name,
                 timeout=timeout,
             )
-            return await future
+            try:
+                return await asyncio.wait_for(future, timeout)
+            except asyncio.TimeoutError:
+                return None
 
 
 class RPCSyncClient(RPCSyncClientProtocol, Connector, MessageConverter):
