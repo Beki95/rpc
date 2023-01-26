@@ -39,6 +39,7 @@ class Connector:
     def __init__(
             self,
             url: Union[str, None] = None,
+            heartbeat: int = 60,  # In seconds
             host: str = 'localhost',
             port: int = 5672,
             username: str = "guest",
@@ -67,6 +68,7 @@ class Connector:
                 credentials=PlainCredentials(
                     username=username, password=passwd,
                 ),
+                heartbeat=heartbeat,
                 connection_attempts=connection_attempts,
                 retry_delay=retry_delay,
             )
