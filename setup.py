@@ -3,7 +3,7 @@ from setuptools import (
     setup,
 )
 
-VERSION = "1.2.8"
+VERSION = "1.2.9"
 NAME: str = 'remote_procedure'
 AUTHOR: str = 'Imanji Beki'  # noqa
 AUTHOR_EMAIL: str = 'imanjibeki@gmail.com'
