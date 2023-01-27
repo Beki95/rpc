@@ -68,7 +68,7 @@ class RPCAsyncClient(RPCAsyncClientProtocol, AsyncConnector, MessageConverter):
             future = self.loop.create_future()
             self.futures[correlation_id] = future
 
-            expiration: str | None = (expiration and timeout) or None
+            expiration: Union[str, None] = (expiration and timeout) or None
 
             body = self.convert_dict_to_bytes(obj=body)
 
@@ -105,6 +105,10 @@ class RPCSyncClient(RPCSyncClientProtocol, Connector, MessageConverter):
             ch.stop_consuming()
 
     def consume(self, queue, channel: BlockingChannel):
+        if not self._connection or self._connection.is_closed:
+            LOGGER.warning('The connection fell or was closed')
+            self._connection = self.connection_factory()
+            channel = self.open_channel()
         try:
             channel.basic_consume(
                 queue=queue, on_message_callback=self.on_response,
@@ -127,7 +131,9 @@ class RPCSyncClient(RPCSyncClientProtocol, Connector, MessageConverter):
             correlation_id = get_correlation_id()
             self.correlation_id_data[correlation_id] = correlation_id
 
-            expiration: str | None = (expiration and str(timeout)) or None
+            expiration: Union[str, None] = (
+                                                   expiration and str(timeout)
+                                           ) or None
 
             body = self.convert_dict_to_bytes(obj=body)
 
