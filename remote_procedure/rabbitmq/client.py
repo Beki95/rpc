@@ -95,9 +95,6 @@ class RPCSyncClient(RPCSyncClientProtocol, Connector, MessageConverter):
         super().__init__(*args, **kwargs)
         self.correlation_id_data: dict = {}
         self.response: Union[dict, None] = None
-        self.channel_pool: PoolProtocol = PoolCtx(
-            self.open_channel, max_size=max_size,
-        )
 
     def on_response(self, ch: BlockingChannel, method, props, body):
         if self.correlation_id_data.pop(props.correlation_id, None):
@@ -131,35 +128,36 @@ class RPCSyncClient(RPCSyncClientProtocol, Connector, MessageConverter):
             expiration: bool = True,
     ):
         """https://www.rabbitmq.com/tutorials/tutorial-six-python.html"""
-        with self.channel_pool as channel:  # acquire a channel from the pool
-            try:
-                callback_queue = self.get_callback_queue(channel=channel)
-                self.consume(queue=callback_queue, channel=channel)
-            except pika.exceptions.StreamLostError:
-                self._connection = self.connection_factory()
-                channel = self.open_channel()
-                callback_queue = self.get_callback_queue(channel=channel)
+        try:
+            channel = self.open_channel()
+        except pika.exceptions.StreamLostError:
+            self._connection = self.connection_factory()
+            channel = self.open_channel()
 
-            correlation_id = get_correlation_id()
-            self.correlation_id_data[correlation_id] = correlation_id
+        callback_queue = self.get_callback_queue(channel=channel)
+        self.consume(queue=callback_queue, channel=channel)
 
-            expiration: Union[str, None] = (
-                                                   expiration and str(timeout)
-                                           ) or None
-            body = self.convert_dict_to_bytes(obj=body)
+        correlation_id = get_correlation_id()
+        self.correlation_id_data[correlation_id] = correlation_id
 
-            self.publish(
-                channel=channel,
-                exchange=self._exchange,
-                routing_key=routing_key,
-                body=body,
-                properties=BasicProperties(
-                    content_type='application/json',
-                    reply_to=callback_queue,
-                    correlation_id=correlation_id,
-                    expiration=expiration,
-                ),
-            )
+        expiration: Union[str, None] = (
+                                               expiration and str(timeout)
+                                       ) or None
+        body = self.convert_dict_to_bytes(obj=body)
 
-            self._connection.process_data_events(time_limit=timeout)
+        self.publish(
+            channel=channel,
+            exchange=self._exchange,
+            routing_key=routing_key,
+            body=body,
+            properties=BasicProperties(
+                content_type='application/json',
+                reply_to=callback_queue,
+                correlation_id=correlation_id,
+                expiration=expiration,
+            ),
+        )
+
+        self._connection.process_data_events(time_limit=timeout)
+        self.close_channel(channel=channel)
         return self.response
