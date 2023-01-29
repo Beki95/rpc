@@ -56,7 +56,6 @@ class Connector:
         self._exchange = exchange
         self.durable = durable
         self.prefetch_count = prefetch_count
-        self.callback_queue = None
         self.connection_attempts = connection_attempts
         self.retry_delay = retry_delay
         if url:
@@ -87,7 +86,6 @@ class Connector:
 
         if self._exchange:
             self.setup_exchange(self._exchange, channel=channel)
-        self.setup_queue_declare(queue='', channel=channel)
         return channel
 
     def setup_exchange(self, exchange, channel: BlockingChannel):
@@ -97,12 +95,11 @@ class Connector:
             durable=self.durable,
         )
 
-    def setup_queue_declare(self, queue, channel: BlockingChannel):
-        result = channel.queue_declare(
+    def setup_queue_declare(self, queue, channel: BlockingChannel):  # noqa
+        return channel.queue_declare(
             queue=queue,
             exclusive=True,
         )
-        self.callback_queue = result.method.queue
 
     def close_channel(self, channel: BlockingChannel):  # noqa
         LOGGER.info(f'Channel number: {channel.channel_number} closure')

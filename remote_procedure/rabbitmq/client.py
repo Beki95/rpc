@@ -6,6 +6,7 @@ from typing import (
     Union,
 )
 
+import pika
 from aio_pika import (
     Channel,
     Message,
@@ -24,7 +25,6 @@ from remote_procedure.rabbitmq.base import (
     MessageConverter,
     get_correlation_id,
 )
-from remote_procedure.rabbitmq.error import ChannelClosedByBrokerError
 from remote_procedure.rabbitmq.pool import (
     PoolCtx,
     PoolProtocol,
@@ -104,18 +104,24 @@ class RPCSyncClient(RPCSyncClientProtocol, Connector, MessageConverter):
             self.response = self.convert_message_to_dict(body)
             ch.stop_consuming()
 
-    def consume(self, queue, channel: BlockingChannel):
-        if not self._connection or self._connection.is_closed:
-            LOGGER.warning('The connection fell or was closed')
-            self._connection = self.connection_factory()
-            channel = self.open_channel()
+    def get_callback_queue(self, channel: BlockingChannel) -> str:
+        callback_queue = self.setup_queue_declare(
+            queue='', channel=channel,  # Queue = '' random value is generated
+        )
+        return callback_queue.method.queue
+
+    def publish(self, channel: BlockingChannel, **kwargs):
         try:
-            channel.basic_consume(
-                queue=queue, on_message_callback=self.on_response,
-                auto_ack=True,
-            )
-        except ChannelClosedByBroker as exc:
-            raise ChannelClosedByBrokerError(exc)
+            channel.basic_publish(**kwargs)
+        except pika.exceptions.ChannelWrongStateError:
+            channel = self.open_channel()
+            channel.basic_publish(**kwargs)
+
+    def consume(self, queue, channel: BlockingChannel):
+        channel.basic_consume(
+            queue=queue, on_message_callback=self.on_response,
+            auto_ack=True,
+        )
 
     def rpc_call(
             self,
@@ -125,8 +131,14 @@ class RPCSyncClient(RPCSyncClientProtocol, Connector, MessageConverter):
             expiration: bool = True,
     ):
         """https://www.rabbitmq.com/tutorials/tutorial-six-python.html"""
-        with self.channel_pool as channel:  # type: BlockingChannel
-            self.consume(queue=self.callback_queue, channel=channel)
+        with self.channel_pool as channel:  # acquire a channel from the pool
+            try:
+                callback_queue = self.get_callback_queue(channel=channel)
+                self.consume(queue=callback_queue, channel=channel)
+            except pika.exceptions.StreamLostError:
+                self._connection = self.connection_factory()
+                channel = self.open_channel()
+                callback_queue = self.get_callback_queue(channel=channel)
 
             correlation_id = get_correlation_id()
             self.correlation_id_data[correlation_id] = correlation_id
@@ -134,19 +146,20 @@ class RPCSyncClient(RPCSyncClientProtocol, Connector, MessageConverter):
             expiration: Union[str, None] = (
                                                    expiration and str(timeout)
                                            ) or None
-
             body = self.convert_dict_to_bytes(obj=body)
 
-            channel.basic_publish(
+            self.publish(
+                channel=channel,
                 exchange=self._exchange,
                 routing_key=routing_key,
                 body=body,
                 properties=BasicProperties(
                     content_type='application/json',
-                    reply_to=self.callback_queue,
+                    reply_to=callback_queue,
                     correlation_id=correlation_id,
                     expiration=expiration,
                 ),
             )
+
             self._connection.process_data_events(time_limit=timeout)
-            return self.response
+        return self.response
