@@ -25,10 +25,6 @@ from remote_procedure.rabbitmq.base import (
     MessageConverter,
     get_correlation_id,
 )
-from remote_procedure.rabbitmq.pool import (
-    PoolCtx,
-    PoolProtocol,
-)
 from remote_procedure.rabbitmq.protocols import (
     RPCAsyncClientProtocol,
     RPCSyncClientProtocol,
@@ -48,7 +44,10 @@ class RPCAsyncClient(RPCAsyncClientProtocol, AsyncConnector, MessageConverter):
         if message.correlation_id is None:
             LOGGER.info(f"Bad message {message!r}")
             return
-        future: asyncio.Future = self.futures.pop(message.correlation_id)
+        if message.correlation_id not in self.futures:
+            LOGGER.error(f'Message {message!r} not in futures')
+            return
+        future: asyncio.Future = self.futures.pop(message.correlation_id, None)
         resp: dict = self.convert_message_to_dict(message=message.body)
         future.set_result(resp)
 
